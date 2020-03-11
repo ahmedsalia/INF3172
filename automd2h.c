@@ -112,9 +112,26 @@ int main(int argc, char *argv[]) {
 		argv2[i] = argv[option+i-1];
 		
 	if (r == true ) {
-		 pandoc = false;
-		 for (int z = 2 ; z < argc-option+1; z++)
-		 	listdir(argv2[z],t,n,&retour);
+		pandoc = false;
+		for (int z = 2 ; z < argc-option+1; z++){
+			 if(isDirectory(argv2[z])){
+				listdir(argv2[z],t,n,&retour);
+			 }else{
+				if(t){
+					if(optionT(argv2[z])){
+						if(n)
+							retour = optionN(argv2[z]);
+						else
+							retour = noOption(argv2[z]);
+					}
+				}else 
+					if(n)
+						retour = optionN(argv2[z]);
+					else
+						retour = noOption(argv2[z]);
+                	}
+
+		}
 		return retour;
 	 }
 
@@ -529,6 +546,9 @@ bool optionT(const char* file){
 int optionN(const char* file){
 	int status;
 	int res = 0; 
+	struct stat source_stat;
+	if(stat(file, &source_stat) < 0)
+		return 1;
 	int pid1 = fork();
 	if (pid1 == -1)
 		perror("Echec du premier fork()");
