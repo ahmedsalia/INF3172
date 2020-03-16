@@ -723,8 +723,10 @@ return res;
 void listdir(const char *name,const bool t,const bool n,int* ret){
 	DIR *dir;
 	struct dirent *entry;
-	if (!(dir = opendir(name)))
-		exit(1);
+	if (!(dir = opendir(name))){
+		*ret = 1;
+		return;
+	}
 	while ((entry = readdir(dir)) != NULL) {
 		if (entry->d_type == DT_DIR) {
 			char path[1024];
@@ -732,67 +734,65 @@ void listdir(const char *name,const bool t,const bool n,int* ret){
 			snprintf(path, sizeof(path), "%s/%s", name, entry->d_name);
 			listdir(path,t,n,ret);
 		} else {
-			if(is_MD(entry->d_name)){
+			if(isSymLink(entry->d_name)){
+	                        struct stat file_stat;
+	                        char* file2;
+	                        ssize_t r;
+	                        if(lstat(entry->d_name,&file_stat) == -1){
+	                                *ret = 1;
+	                                continue;
+	                        }
+	                        file2 = malloc(file_stat.st_size + 1);
+	                        if(file2 == NULL){
+	                                *ret = 1; 
+	                                continue; 
+	                        }
+	                        r = readlink(entry->d_name, file2, file_stat.st_size + 1);
+	                        if(r == -1){
+	                                *ret = 1;
+	                                continue;
+	                        }
+	                        if(r > file_stat.st_size){
+	                                *ret = 1 ;
+	                                continue;
+	                        }
+	                        file2[r] = '\0';
+	                        if(t){
+	                                if(optionT(file2)){
+	                                        if(!n)
+	                                                *ret = noOption(file2);
+	                                        else
+	                                                *ret = optionN(file2);
+	                                }
+        	                 }else{
+        	                        if(!n)
+        	                                *ret = noOption(file2);
+        	                        else
+        	                            	*ret = optionN(file2);
+        	                 } 
+        	        }else if(is_MD(entry->d_name)){
 				char file[1024];
-				snprintf(file,sizeof(file),"%s/%s",name,entry->d_name);
-				if(isSymLink(file)){
-					struct stat file_stat;
-                                	char* file2;
-                                	ssize_t r;
-                                	if(lstat(file,&file_stat) == -1){
-                                        	*ret = 1;
-                                        	continue;
-                                	}
-                                	file2 = malloc(file_stat.st_size + 1);
-                                	if(file2 == NULL){
-                                        	*ret = 1; 
-                                        	continue; 
-                                	}
-                               	 	r = readlink(file, file2, file_stat.st_size + 1);
-                                	if(r == -1){
-                                	        *ret = 1;
-                                	        continue;
-                                	}
-                                	if(r > file_stat.st_size){
-                                	        *ret = 1 ;
-                                	        continue;
-                                	}
-                                	file2[r] = '\0';
-                                	if(t){
-                                      		if(optionT(file2)){
-                                                	if(!n)
-                                                	        *ret = noOption(file2);
-                                                	else
-                                                	    	*ret = optionN(file2);
-                                        	}
-                               		 }else{
-                                        	if(!n)
-                                        	        *ret = noOption(file2);
-                                        	else
-                                                	*ret = optionN(file2);
-                              		 } 
-				}else {
-					if(t==true){
-						if(optionT(file) == true){
-							if(n == true){
-								*ret =  optionN(file);
-							}else{
-								*ret = noOption(file); 
-							}
-						} 
-
-					}else{
+				snprintf(file,sizeof(file),"%s/%s",name,entry->d_name);	
+				if(t==true){
+					if(optionT(file) == true){
 						if(n == true){
 							*ret =  optionN(file);
 						}else{
 							*ret = noOption(file); 
 						}
+					} 	
+				}else{
+					if(n == true){
+						*ret =  optionN(file);
+					}else{
+						*ret = noOption(file); 
 					}
 				}
 			}
 		}
 	}
-    closedir(dir);
+
+	    closedir(dir);
 }
 
 
