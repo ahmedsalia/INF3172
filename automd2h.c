@@ -44,8 +44,8 @@ AUTOMD2H
 					 pas accessible
 					 
  
-  AUTEUR           : Ahmed Salia Toure TOU01119806 
-                     Lounis Adjissa    ADJ20069504
+  AUTEUR           : Ahmed Salia Toure TOUA01119806 
+                     Lounis Adjissa    ADJL20069504
  
  
 *******************************************************************************/
@@ -84,8 +84,8 @@ int noOption(const char* file);
 bool optionT(const char* file);
 int optionN(const char* file);
 bool isDirectory(const char* dir);
+bool isSymLink(const char* file);
 void listdir(const char *name,const bool t,const bool n,int* ret);
-
 
 
 
@@ -116,6 +116,42 @@ int main(int argc, char *argv[]) {
 		for (int z = 2 ; z < argc-option+1; z++){
 			 if(isDirectory(argv2[z])){
 				listdir(argv2[z],t,n,&retour);
+			 }else if (isSymLink(argv2[z])) {
+                                struct stat file_stat;
+               		        char* file;
+                                ssize_t r;
+                                if(lstat(argv2[z],&file_stat) == -1){
+                                        retour = 1;
+                                        continue;
+                                }
+                                file = malloc(file_stat.st_size + 1);
+                                if(file == NULL){
+                                        retour = 1; 
+                                        continue; 
+                                }
+                                r = readlink(argv2[z], file, file_stat.st_size + 1);
+                                if(r == -1){
+                                        retour = 1;
+                                        continue;
+                                }
+                                if(r > file_stat.st_size){
+                                        retour = 1 ;
+                                        continue;
+                                }
+                                file[r] = '\0';
+                                if(t){
+                                      	if(optionT(file)){
+						if(!n)
+                                                	retour = noOption(file);
+                                 		else
+							retour = optionN(file);
+				        }
+                                }else{
+					  if(!n)
+                                                retour = noOption(file);
+                                        else
+                                                retour = optionN(file);
+                                } 
 			 }else{
 				if(t){
 					if(optionT(argv2[z])){
@@ -322,6 +358,36 @@ int main(int argc, char *argv[]) {
 				}else{
 					perror("failed to open dir");
 				}
+			 }else if (isSymLink(argv2[z])) {
+                                        struct stat file_stat;
+                                        char* file;
+                                        ssize_t r;
+                                        if(lstat(argv2[z],&file_stat) == -1){
+                                                retour = 1;
+                                                continue;
+                                        }
+                                        file = malloc(file_stat.st_size + 1);
+                                        if(file == NULL){
+                                                retour = 1; 
+                                                continue; 
+                                        }
+                                        r = readlink(argv2[z], file, file_stat.st_size + 1);
+                                        if(r == -1){
+                                                retour = 1;
+                                                continue;
+                                        }
+                                        if(r > file_stat.st_size){
+                                                retour = 1 ;
+                                                continue;
+                                        }
+                                        file[r] = '\0';
+                                        if(t){
+                                              	if(optionT(file)){
+                                                        retour = optionN(file);
+                                                 }
+                                        }else{
+                                                retour = optionN(file);
+                                        } 
 			}else{ 
 				if(aConvertir[z]){ 
 					retour = optionN(argv2[z]);
@@ -332,8 +398,6 @@ int main(int argc, char *argv[]) {
 	} 
 
 		for (int z = 2 ; z < argc-option+1; z++){
-			//char hulu[100];
-			//strcpy(hulu, argv2[z]);
 			if(isDirectory(argv2[z])){
 				DIR *dir = opendir(argv2[z]);
 				struct dirent* entry;
@@ -354,6 +418,36 @@ int main(int argc, char *argv[]) {
 			        }else{
 					perror("failed to open dir");
 				}
+			}else if (isSymLink(argv2[z])) {
+					struct stat file_stat;
+					char* file;
+					ssize_t r;
+					if(lstat(argv2[z],&file_stat) == -1){
+						retour = 1;
+						continue;
+					}
+					file = malloc(file_stat.st_size + 1);
+					if(file == NULL){
+						retour = 1; 
+						continue; 
+					}
+					r = readlink(argv2[z], file, file_stat.st_size + 1);
+					if(r == -1){
+						retour = 1;
+						continue;
+					}
+					if(r > file_stat.st_size){
+						retour = 1 ;
+						continue;
+					}
+					file[r] = '\0';
+					if(t){
+                                                if(optionT(file)){
+                                                        retour = noOption(file);
+                                                 }
+					}else{
+                                              	retour = noOption(file);
+					}	
 			}else{ 
 				if(aConvertir[z])
 					retour = noOption(argv2[z]);
@@ -361,7 +455,6 @@ int main(int argc, char *argv[]) {
 		}
   	return retour;
 }
-
 
 char* rechercheNom(int nbNoms, struct EventMap map[50], int wd){
 	int i = 0;
@@ -591,6 +684,32 @@ return res;
 }
 
 /*
+* Pour savoir si nous avons un lien symbolique ou non 
+*
+* @param dir le nom du fichier/parametre a verifier .
+*
+* @return Retourne true si lien symbolique, false sinon
+*/
+bool isSymLink(const char* file) {
+        bool res = false ; 
+        struct stat file_stat;
+        if(lstat(file,&file_stat) < 0)
+                res =false ;
+        switch (file_stat.st_mode & S_IFMT) {
+                case S_IFBLK:     		break;
+                case S_IFCHR:     		break;
+                case S_IFDIR:    		break;
+                case S_IFIFO:     		break;
+                case S_IFLNK:    		res = true; 	break;
+                case S_IFREG:     		break;
+                case S_IFSOCK:    		break;
+                default:    				break;
+    }
+
+return res; 
+}
+
+/*
 * Comportement du programme si -r est present
 *
 * @param name le nom du repertoire 
@@ -616,20 +735,58 @@ void listdir(const char *name,const bool t,const bool n,int* ret){
 			if(is_MD(entry->d_name)){
 				char file[1024];
 				snprintf(file,sizeof(file),"%s/%s",name,entry->d_name);
-				if(t==true){
-					if(optionT(file) == true){
+				if(isSymLink(file)){
+					struct stat file_stat;
+                                	char* file2;
+                                	ssize_t r;
+                                	if(lstat(file,&file_stat) == -1){
+                                        	*ret = 1;
+                                        	continue;
+                                	}
+                                	file2 = malloc(file_stat.st_size + 1);
+                                	if(file2 == NULL){
+                                        	*ret = 1; 
+                                        	continue; 
+                                	}
+                               	 	r = readlink(file, file2, file_stat.st_size + 1);
+                                	if(r == -1){
+                                	        *ret = 1;
+                                	        continue;
+                                	}
+                                	if(r > file_stat.st_size){
+                                	        *ret = 1 ;
+                                	        continue;
+                                	}
+                                	file2[r] = '\0';
+                                	if(t){
+                                      		if(optionT(file2)){
+                                                	if(!n)
+                                                	        *ret = noOption(file2);
+                                                	else
+                                                	    	*ret = optionN(file2);
+                                        	}
+                               		 }else{
+                                        	if(!n)
+                                        	        *ret = noOption(file2);
+                                        	else
+                                                	*ret = optionN(file2);
+                              		 } 
+				}else {
+					if(t==true){
+						if(optionT(file) == true){
+							if(n == true){
+								*ret =  optionN(file);
+							}else{
+								*ret = noOption(file); 
+							}
+						} 
+
+					}else{
 						if(n == true){
 							*ret =  optionN(file);
 						}else{
 							*ret = noOption(file); 
 						}
-					} 
-
-				}else{
-					if(n == true){
-						*ret =  optionN(file);
-					}else{
-						*ret = noOption(file); 
 					}
 				}
 			}
